@@ -1,0 +1,13 @@
+# Website build output and installed packages
+node_modules/
+.next/
+out/
+
+# Secrets: Supabase and Mailgun keys stay on this computer only
+.env*
+!.env.example
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini
