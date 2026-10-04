@@ -51,7 +51,7 @@ export function CheckoutForm({ defaults }: { defaults: { name: string; email: st
         return;
       }
       clear();
-      router.replace(`/orders/${result.orderId}?placed=1`);
+      router.replace(`/orders/${result.orderId}?placed=1${result.emailSent ? "" : "&email=failed"}`);
     });
   }
 

@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Order confirmation" };
 
 export default async function OrderPage({ params, searchParams }: PageProps<"/orders/[id]">) {
   const { id } = await params;
-  const { placed } = await searchParams;
+  const { placed, email } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -47,7 +47,16 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
         </h1>
         {placed && (
           <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-ink/80">
-            Your order has been placed. A confirmation email is on its way to <strong>{order.email}</strong>.
+            {email === "failed" ? (
+              <>
+                Your order has been placed and saved. We couldn&apos;t send the confirmation email to <strong>{order.email}</strong>{" "}
+                right now, so please keep this page or note your order number below.
+              </>
+            ) : (
+              <>
+                Your order has been placed. A confirmation email is on its way to <strong>{order.email}</strong>.
+              </>
+            )}
           </p>
         )}
       </div>

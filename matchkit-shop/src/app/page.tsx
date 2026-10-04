@@ -79,7 +79,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               <span className="grid flex-1 place-items-center">
                 {l.logo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={l.logo} alt="" className="h-20 w-[80%] object-contain transition-transform duration-500 group-hover:scale-105" />
+                  <img src={l.logo} alt="" className="h-20 w-24 object-contain transition-transform duration-500 group-hover:scale-105" />
                 ) : (
                   <span className="text-3xl font-light tracking-widest">INT</span>
                 )}

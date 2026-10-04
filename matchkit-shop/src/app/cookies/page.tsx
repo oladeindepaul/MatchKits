@@ -118,7 +118,7 @@ export default function CookiePolicyPage() {
               .
             </li>
             <li>
-              <strong>Mailgun</strong> sends your order confirmation emails. It does not set cookies on this website.
+              <strong>Resend</strong> sends your order confirmation emails. It does not set cookies on this website.
             </li>
           </ul>
         </section>

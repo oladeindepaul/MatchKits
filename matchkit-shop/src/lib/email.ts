@@ -26,22 +26,53 @@ export type EmailOrderItem = {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-// Sends the order confirmation through Mailgun's HTTP API.
+type Message = { to: string; subject: string; html: string; text: string };
+
+// Sends the order confirmation. Uses Resend when RESEND_API_KEY is set, otherwise Mailgun.
 // Returns an error message instead of throwing, so a mail problem never loses an order.
 export async function sendOrderConfirmation(order: EmailOrder, items: EmailOrderItem[]): Promise<string | null> {
-  const apiKey = process.env.MAILGUN_API_KEY;
+  const message: Message = {
+    to: `${order.customer_name} <${order.email}>`,
+    subject: `Your MatchKit order ${order.order_number} is confirmed`,
+    html: renderHtml(order, items),
+    text: renderText(order, items),
+  };
+  if (process.env.RESEND_API_KEY) return sendWithResend(message);
+  if (process.env.MAILGUN_API_KEY) return sendWithMailgun(message);
+  return "No email provider configured (set RESEND_API_KEY, or MAILGUN_API_KEY and MAILGUN_DOMAIN).";
+}
+
+async function sendWithResend(message: Message): Promise<string | null> {
+  // onboarding@resend.dev works without a verified domain, but then only delivers to the
+  // email address the Resend account was created with.
+  const from = process.env.RESEND_FROM || "MatchKit <onboarding@resend.dev>";
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to: [message.to], subject: message.subject, html: message.html, text: message.text }),
+    });
+    if (!res.ok) return `Resend responded ${res.status}: ${(await res.text()).slice(0, 300)}`;
+    return null;
+  } catch (e) {
+    return `Could not reach Resend: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+async function sendWithMailgun(message: Message): Promise<string | null> {
+  const apiKey = process.env.MAILGUN_API_KEY!;
   const domain = process.env.MAILGUN_DOMAIN;
-  if (!apiKey || !domain) return "Mailgun is not configured (MAILGUN_API_KEY / MAILGUN_DOMAIN missing).";
+  if (!domain) return "Mailgun is not configured (MAILGUN_DOMAIN missing).";
 
   const base = process.env.MAILGUN_API_BASE || "https://api.mailgun.net";
   const from = process.env.MAILGUN_FROM || `MatchKit <orders@${domain}>`;
 
   const body = new FormData();
   body.set("from", from);
-  body.set("to", `${order.customer_name} <${order.email}>`);
-  body.set("subject", `Your MatchKit order ${order.order_number} is confirmed`);
-  body.set("html", renderHtml(order, items));
-  body.set("text", renderText(order, items));
+  body.set("to", message.to);
+  body.set("subject", message.subject);
+  body.set("html", message.html);
+  body.set("text", message.text);
 
   try {
     const res = await fetch(`${base}/v3/${domain}/messages`, {

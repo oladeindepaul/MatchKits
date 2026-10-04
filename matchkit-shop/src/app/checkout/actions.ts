@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { sendOrderConfirmation, type EmailOrder, type EmailOrderItem } from "@/lib/mailgun";
+import { sendOrderConfirmation, type EmailOrder, type EmailOrderItem } from "@/lib/email";
 import { SIZES } from "@/lib/format";
 import { NIGERIAN_STATES } from "@/lib/states";
 
@@ -15,7 +15,7 @@ export type CheckoutInput = {
   lines: { productId: number; size: string; quantity: number }[];
 };
 
-export type CheckoutResult = { ok: true; orderId: string } | { ok: false; error: string; fields?: Partial<Record<keyof CheckoutInput, string>> };
+export type CheckoutResult = { ok: true; orderId: string; emailSent: boolean } | { ok: false; error: string; fields?: Partial<Record<keyof CheckoutInput, string>> };
 
 export async function placeOrder(input: CheckoutInput): Promise<CheckoutResult> {
   const supabase = await createClient();
@@ -75,10 +75,14 @@ export async function placeOrder(input: CheckoutInput): Promise<CheckoutResult> 
     supabase.from("order_items").select("product_name, club_name, kit_type, image_path, size, quantity, unit_price, line_total").eq("order_id", orderId).order("id"),
   ]);
 
+  // The order is already saved; a failed email (e.g. a free email plan rejecting an
+  // unauthorized recipient) is logged and reported, but never undoes the order.
+  let emailSent = false;
   if (order && items) {
     const mailError = await sendOrderConfirmation(order as EmailOrder, items as EmailOrderItem[]);
     if (mailError) console.error(`[checkout] Confirmation email for ${order.order_number} failed: ${mailError}`);
+    emailSent = !mailError;
   }
 
-  return { ok: true, orderId: orderId as string };
+  return { ok: true, orderId: orderId as string, emailSent };
 }
