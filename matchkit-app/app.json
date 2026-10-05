@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "MatchKit",
+    "slug": "matchkit-app",
+    "owner": "oladeindepauls-team",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "matchkit",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#fef8ec",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.matchkit.app"
+    },
+    "android": {
+      "package": "com.matchkit.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#fef8ec",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#fef8ec",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3a6c1747-0411-479d-949f-5177407c97df"
+      }
+    }
+  }
+}
