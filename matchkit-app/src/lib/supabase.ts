@@ -1,4 +1,4 @@
-import 'expo-sqlite/localStorage/install';
+import './local-storage';
 import { createClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 
@@ -6,7 +6,8 @@ import { AppState } from 'react-native';
 // The session is saved on the device, so shoppers stay logged in after closing the app.
 export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL!, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!, {
   auth: {
-    storage: localStorage,
+    // undefined only while the web build pre-renders pages on the server
+    storage: typeof localStorage === 'undefined' ? undefined : localStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

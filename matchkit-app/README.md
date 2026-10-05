@@ -1,56 +1,59 @@
-# Welcome to your Expo app 👋
+# MatchKit mobile app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The Android (and iOS) app for **MatchKit**, the football jersey shop. It shares one Supabase backend with the
+[MatchKit website](https://matchkits.vercel.app) (`../matchkit-shop`), so the same account, cart, wishlist and
+orders work on both.
 
-## Get started
+Built with **Expo SDK 57 / React Native**, **Expo Router** and **Supabase**.
 
-1. Install dependencies
+## Features
 
-   ```bash
-   npm install
-   ```
+- Log in and register with the same email and password as the website (stays logged in)
+- Home with featured jerseys, league chips and shop-by-league
+- Shop with search and filters (league, club, kit, price, sort)
+- League and club pages, product page with kit switcher, sizes and quantity
+- **Cart synced with the website in both directions, live** (Supabase Realtime)
+- Wishlist synced with the website
+- Checkout and order confirmation (orders are placed through the website's `/api/checkout`, so the
+  confirmation email and pricing rules are identical), order history in Account
+- Bottom tabs with cart and wishlist badges, pull to refresh, haptics, MatchKit icon and splash screen
+- All prices in Nigerian Naira (₦); no payment gateway
 
-2. Start the app
+## How the sync works
 
-   ```bash
-   npx expo start
-   ```
+When signed in, the cart lives in Supabase's `cart_items` table (one row per jersey and size). The website and
+the app both read and write it, and both subscribe to changes, so an item added on one appears on the other
+within a second or two. Row Level Security ensures each shopper only sees their own rows.
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run it
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code with Expo Go. On Windows PowerShell use `npx.cmd` instead of `npx`.
 
-### Other setup steps
+Configuration lives in `.env` (local) and `eas.json` (cloud builds); both hold only public values:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```
+EXPO_PUBLIC_SUPABASE_URL=...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=...   # publishable key, protected by Row Level Security
+EXPO_PUBLIC_SITE_URL=https://matchkits.vercel.app
+```
 
-## Learn more
+## Build the APK
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npx eas-cli@latest build -p android --profile preview
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Project layout
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+src/app/            screens (Expo Router): (tabs)/ home, shop, wishlist, cart, account;
+                    product/[slug], league/[slug], club/[slug], leagues, checkout, order/[id], login, register
+src/providers/      auth, catalog, cart (synced), wishlist (synced)
+src/components/     product card and grid, hero, club tile, chips, stepper, form fields
+src/lib/            Supabase client, catalog queries, formatting
+```

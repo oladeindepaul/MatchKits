@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://wfxtpfoxfoaznlnpvpzj.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_XQIxEw7XCw4I3MM1E63vWg_-QUD4_Z6",
+        "EXPO_PUBLIC_SITE_URL": "https://matchkits.vercel.app"
+      },
+      "autoIncrement": true
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://wfxtpfoxfoaznlnpvpzj.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_XQIxEw7XCw4I3MM1E63vWg_-QUD4_Z6",
+        "EXPO_PUBLIC_SITE_URL": "https://matchkits.vercel.app"
+      }
+    }
+  }
+}

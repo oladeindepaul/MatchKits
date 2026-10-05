@@ -114,7 +114,7 @@ function buildCatalog() {
 
     const league = {
       ...meta,
-      logo: logoFile && { src: path.join(dir, logoFile.name), dest: `leagues/${meta.slug}${path.extname(logoFile.name).toLowerCase()}` },
+      logo: logoFile && { src: path.join(dir, logoFile.name), dest: `leagues/${meta.slug}.png` },
       clubs: [],
     };
 
@@ -154,7 +154,7 @@ function buildCatalog() {
       league.clubs.push({
         slug,
         name: clubMeta.name,
-        logo: logo && { src: path.join(cdir, logo), dest: `clubs/${slug}${path.extname(logo).toLowerCase()}` },
+        logo: logo && { src: path.join(cdir, logo), dest: `clubs/${slug}.png` },
         products,
       });
     }
@@ -208,12 +208,21 @@ async function upload({ leagues }) {
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
   const brandLogo = { src: path.join(ASSETS_DIR, "MatchKit Logo.jpeg"), dest: "brand/matchkit-logo.jpeg" }; // used in emails
-  const files = [brandLogo, ...leagues.flatMap((l) => [l.logo, ...l.clubs.flatMap((c) => [c.logo, ...c.products.map((p) => p.image)])])].filter(Boolean);
+  const logosOnly = process.argv.includes("--logos-only");
+  const all = [brandLogo, ...leagues.flatMap((l) => [l.logo, ...l.clubs.flatMap((c) => [c.logo, ...c.products.map((p) => p.image)])])].filter(Boolean);
+  // Logos are converted from SVG to PNG: some crest SVGs (e.g. Coventry, Sunderland) use masks and
+  // embedded images that iOS can't draw, while PNGs look the same everywhere.
+  const files = logosOnly ? all.filter((f) => f.dest.endsWith(".png")) : all;
+  const { default: sharp } = await import("sharp");
+  const toBuffer = (f) =>
+    f.src.toLowerCase().endsWith(".svg")
+      ? sharp(f.src, { density: 300 }).resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+      : fs.promises.readFile(f.src);
   const types = { ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg", ".jpeg": "image/jpeg" };
 
   let done = 0;
   for (const f of files) {
-    const { error } = await supabase.storage.from(BUCKET).upload(f.dest, fs.readFileSync(f.src), {
+    const { error } = await supabase.storage.from(BUCKET).upload(f.dest, await toBuffer(f), {
       contentType: types[path.extname(f.dest)],
       upsert: true,
     });
