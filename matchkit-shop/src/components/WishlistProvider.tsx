@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,6 +26,27 @@ export function WishlistProvider({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Pick up hearts added or removed elsewhere (the mobile app, another tab).
+  useEffect(() => {
+    if (!userId) return;
+    const refresh = async () => {
+      const { data, error } = await supabase.from("wishlist_items").select("product_id");
+      if (!error) setIds(new Set((data ?? []).map((r) => r.product_id as number)));
+    };
+    const channel = supabase
+      .channel(`wishlist-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "wishlist_items", filter: `user_id=eq.${userId}` }, refresh)
+      .subscribe();
+    const onVisible = () => document.visibilityState === "visible" && refresh();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [userId, supabase]);
 
   const toggle = useCallback(
     async (productId: number) => {

@@ -80,6 +80,26 @@ export function CartProvider({ userId, children }: { userId: string | null; chil
     writeLocal(next);
   }, []);
 
+  // Reads the signed-in shopper's saved cart from Supabase (null if it couldn't be read).
+  const fetchSaved = useCallback(async (): Promise<CartLine[] | null> => {
+    const { data, error } = await supabase
+      .from("cart_items")
+      .select("product_id, size, quantity, created_at, products(slug, name, price, kit_type, product_images(path), clubs(name))")
+      .order("created_at");
+    if (error) return null;
+    return (data as unknown as DbCartRow[]).map((r) => ({
+      productId: r.product_id,
+      slug: r.products.slug,
+      name: r.products.name,
+      clubName: r.products.clubs.name,
+      kitType: r.products.kit_type,
+      price: r.products.price,
+      image: storageUrl(r.products.product_images[0]?.path),
+      size: r.size,
+      quantity: r.quantity,
+    }));
+  }, [supabase]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -91,27 +111,12 @@ export function CartProvider({ userId, children }: { userId: string | null; chil
         return;
       }
 
-      const { data, error } = await supabase
-        .from("cart_items")
-        .select("product_id, size, quantity, products(slug, name, price, kit_type, product_images(path), clubs(name))");
-
-      if (error) {
+      const saved = await fetchSaved();
+      if (!saved) {
         if (!cancelled) commit(local);
         setReady(true);
         return;
       }
-
-      const saved: CartLine[] = (data as unknown as DbCartRow[]).map((r) => ({
-        productId: r.product_id,
-        slug: r.products.slug,
-        name: r.products.name,
-        clubName: r.products.clubs.name,
-        kitType: r.products.kit_type,
-        price: r.products.price,
-        image: storageUrl(r.products.product_images[0]?.path),
-        size: r.size,
-        quantity: r.quantity,
-      }));
 
       const guestOnly = local.filter((l) => !saved.some((s) => sameLine(s, l)));
       if (guestOnly.length) {
@@ -129,7 +134,36 @@ export function CartProvider({ userId, children }: { userId: string | null; chil
     return () => {
       cancelled = true;
     };
-  }, [userId, supabase, commit]);
+  }, [userId, supabase, commit, fetchSaved]);
+
+  // Keep this tab in step with changes made elsewhere (the mobile app, another tab):
+  // re-read the saved cart when Supabase reports a change, and when the shopper returns to the tab.
+  useEffect(() => {
+    if (!userId) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const saved = await fetchSaved();
+        if (saved) commit(saved);
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(`cart-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cart_items", filter: `user_id=eq.${userId}` }, refresh)
+      .subscribe();
+    const onVisible = () => document.visibilityState === "visible" && refresh();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearTimeout(timer);
+      supabase.removeChannel(channel);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [userId, supabase, commit, fetchSaved]);
 
   const saveLine = useCallback(
     (line: CartLine) => {
