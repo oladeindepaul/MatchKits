@@ -61,7 +61,8 @@ const side = Math.max(maxX - minX, maxY - minY) + 1 + pad * 2;
 const ox = minX - Math.round((side - (maxX - minX + 1)) / 2);
 const oy = minY - Math.round((side - (maxY - minY + 1)) / 2);
 
-const out = Buffer.alloc(side * side * 3);
+const out = Buffer.alloc(side * side * 3); // M on cream
+const alpha = Buffer.alloc(side * side * 4); // M on transparent (for Android adaptive icons and the splash)
 for (let y = 0; y < side; y++) {
   for (let x = 0; x < side; x++) {
     const sx = ox + x, sy = oy + y;
@@ -71,7 +72,12 @@ for (let y = 0; y < side; y++) {
       const keep = label[i] === mLabel || (near(i, (l) => l === mLabel) && !near(i, (l) => l > 0 && l !== mLabel));
       if (keep) t = Math.min(1, Math.max(0, (data[i] - 20) / (248 - 20)));
     }
-    for (let c = 0; c < 3; c++) out[(y * side + x) * 3 + c] = Math.round(INK[c] * (1 - t) + CREAM[c] * t);
+    const p = y * side + x;
+    for (let c = 0; c < 3; c++) {
+      out[p * 3 + c] = Math.round(INK[c] * (1 - t) + CREAM[c] * t);
+      alpha[p * 4 + c] = INK[c];
+    }
+    alpha[p * 4 + 3] = Math.round(255 * (1 - t));
   }
 }
 
@@ -79,3 +85,21 @@ const icon = sharp(out, { raw: { width: side, height: side, channels: 3 } });
 await icon.clone().resize(512, 512).png().toFile(path.join(root, "src", "app", "icon.png"));
 await icon.clone().resize(180, 180).png().toFile(path.join(root, "src", "app", "apple-icon.png"));
 console.log(`M found at ${minX},${minY}–${maxX},${maxY}; wrote src/app/icon.png (512px) and src/app/apple-icon.png (180px)`);
+
+// Mobile app icons, when the app sits next to the website (MatchKits/matchkit-app).
+const appImages = path.join(root, "..", "matchkit-app", "assets", "images");
+const { existsSync } = await import("node:fs");
+if (existsSync(appImages)) {
+  const m = sharp(alpha, { raw: { width: side, height: side, channels: 4 } });
+  // Android crops adaptive icons to a circle/squircle, so the M sits inside the central safe zone.
+  const onTransparent = async (canvas, mSize) =>
+    sharp({ create: { width: canvas, height: canvas, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: await m.clone().resize(mSize, mSize, { kernel: "lanczos3" }).png().toBuffer(), gravity: "center" }])
+      .png();
+  await icon.clone().resize(1024, 1024, { kernel: "lanczos3" }).png().toFile(path.join(appImages, "icon.png"));
+  await (await onTransparent(1024, 560)).toFile(path.join(appImages, "android-icon-foreground.png"));
+  await (await onTransparent(1024, 560)).toFile(path.join(appImages, "android-icon-monochrome.png"));
+  await (await onTransparent(512, 512)).toFile(path.join(appImages, "splash-icon.png"));
+  await icon.clone().resize(48, 48).png().toFile(path.join(appImages, "favicon.png"));
+  console.log("wrote app icon, Android adaptive icon, splash icon and favicon to matchkit-app/assets/images");
+}
